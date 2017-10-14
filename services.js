@@ -56,8 +56,8 @@ module.exports = {
                 return {
                     isLate: time.RetardReal > 0,
                     delay: {
-                        hours: Math.floor(time.RetardMinutes / 60), 
-                        minutes: time.RetardMinutes % 60
+                        hours: time.RetardMinutes > 0 ? Math.floor(time.RetardMinutes / 60) : 0, 
+                        minutes: time.RetardMinutes > 0 ? time.RetardMinutes % 60 : 0
                     },
                     plannedDepartureDateTime: moment(baseTime).set({hour: plannedDepartureTime.get('hour'), minute: plannedDepartureTime.get('minute')}),
                     plannedArrivalDateTime: moment(baseTime).set({hour: plannedArrivalTime.get('hour'), minute: plannedArrivalTime.get('minute')}),
