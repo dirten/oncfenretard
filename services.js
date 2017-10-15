@@ -72,8 +72,18 @@ module.exports = {
                     })
                 }
 
+                // trip info
+                const tripDuration = actualArrivalTime.diff(actualDepartureTime, 'minutes')
+
                 return {
-                    isDelayed: time.RetardReal > 0,
+                    isDelayed: time.RetardMinutes > 0,
+                    trip: {
+                        distance: time.DistanceGD_DA,
+                        duration: {
+                            hours: Math.floor(tripDuration / 60),
+                            minutes: tripDuration % 60
+                        } 
+                    },
                     delay: {
                         hours: time.RetardMinutes > 0 ? Math.floor(time.RetardMinutes / 60) : 0, 
                         minutes: time.RetardMinutes > 0 ? time.RetardMinutes % 60 : 0
