@@ -111,7 +111,11 @@ module.exports = {
                 }  
             }).filter(time => {
                 // monkey-patch expired times related to daylight saving shift
-                return departureDateTime < time.actualDepartureDateTime
+                const actualDepartureDateTime = moment(time.actualDepartureDateTime)
+                if(moment().isDST()) {
+                    actualDepartureDateTime.add(1, 'hour')
+                }
+                return departureDateTime.diff(actualDepartureDateTime, 'minutes') <= 0
             }))
     }
 }
