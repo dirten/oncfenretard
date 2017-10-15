@@ -34,6 +34,11 @@ module.exports = {
             })))
     },
     getTimes(fromStationId, toStationId, departureDateTime = moment.utc()) {
+        // monkey-patch daylight saving shift
+        if(moment().isDST()) {
+            departureDateTime.add(1, 'hour')
+        }
+
         return client
             .get('/trainnow/search', {
                 params: {
@@ -104,6 +109,9 @@ module.exports = {
                     actualArrivalDateTime: moment(baseTime).set({hour: actualArrivalTime.get('hour'), minute: actualArrivalTime.get('minute')}),
                     trains: trains
                 }  
+            }).filter(time => {
+                // monkey-patch expired times related to daylight saving shift
+                return departureDateTime < time.actualDepartureDateTime
             }))
     }
 }
