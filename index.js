@@ -1,7 +1,7 @@
 const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
-const moment = require('moment')
+const moment = require('moment-timezone')
 const NodeCache = require( "node-cache" )
 const services = require('./services')
 
@@ -26,7 +26,7 @@ app.get('/stations', (req, res) => {
 })
 
 app.get('/times', (req, res) => {
-    const departureDateTime = moment(req.query.departureDateTime)
+    const departureDateTime = moment.utc(req.query.departureDateTime)
     if(!departureDateTime.isValid()) {
         return res.sendStatus(400)
     }

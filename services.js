@@ -1,5 +1,5 @@
 const axios = require('axios')
-const moment = require('moment')
+const moment = require('moment-timezone')
 const crypto = require('crypto')
 const url = require('url')
 
@@ -33,7 +33,7 @@ module.exports = {
                 }
             })))
     },
-    getTimes(fromStationId, toStationId, departureDateTime = moment()) {
+    getTimes(fromStationId, toStationId, departureDateTime = moment.utc()) {
         return client
             .get('/trainnow/search', {
                 params: {
@@ -51,6 +51,10 @@ module.exports = {
                 if(time.RetardReal > 0) {
                     actualDepartureTime = moment(actualDepartureTime).add(time.RetardReal, 'seconds')
                     actualArrivalTime = moment(actualArrivalTime).add(time.RetardReal, 'seconds')
+                }
+
+                if(actualArrivalTime.diff(actualDepartureTime, 'minutes') < 0) {
+                    actualArrivalTime.add(1, 'day')
                 }
 
                 // train in deparature station
