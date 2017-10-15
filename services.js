@@ -48,6 +48,12 @@ module.exports = {
                 let plannedDepartureTime = actualDepartureTime =  moment(time.HeureDepart, 'HH:mm')
                 let plannedArrivalTime = actualArrivalTime =  moment(time.HeureArrive, 'HH:mm')
                 
+                // monkey-patch their bug!
+                if (!moment(time.HeureArriveReel, 'HH:mm').isValid()) {
+                    time.RetardReal = (24 * 60 * 60) - time.RetardReal
+                    time.RetardMinutes = Math.floor(time.RetardReal / 60)
+                }
+
                 if(time.RetardReal > 0) {
                     actualDepartureTime = moment(actualDepartureTime).add(time.RetardReal, 'seconds')
                     actualArrivalTime = moment(actualArrivalTime).add(time.RetardReal, 'seconds')
