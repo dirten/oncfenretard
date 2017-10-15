@@ -53,6 +53,25 @@ module.exports = {
                     actualArrivalTime = moment(actualArrivalTime).add(time.RetardReal, 'seconds')
                 }
 
+                // train in deparature station
+                const trains = [{
+                    station: {
+                        id: fromStationId
+                    },
+                    type: time.Train.Gamme
+                }]
+
+                if(time.Correspondnaces) {
+                    time.Correspondnaces.forEach(correspondnace => {
+                        trains.push({
+                            station: {
+                                id: `${correspondnace.CodeGare}0000` // don't ask me why!
+                            },
+                            type: correspondnace.GammeTrain
+                        })
+                    })
+                }
+
                 return {
                     isDelayed: time.RetardReal > 0,
                     delay: {
@@ -63,10 +82,7 @@ module.exports = {
                     plannedArrivalDateTime: moment(baseTime).set({hour: plannedArrivalTime.get('hour'), minute: plannedArrivalTime.get('minute')}),
                     actualDepartureDateTime: moment(baseTime).set({hour: actualDepartureTime.get('hour'), minute: actualDepartureTime.get('minute')}),
                     actualArrivalDateTime: moment(baseTime).set({hour: actualArrivalTime.get('hour'), minute: actualArrivalTime.get('minute')}),
-                    train: {
-                        number: time.Train.Numero,
-                        type: time.Train.Gamme
-                    }
+                    trains: trains
                 }  
             }))
     }
