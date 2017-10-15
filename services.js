@@ -54,7 +54,7 @@ module.exports = {
                 }
 
                 return {
-                    isLate: time.RetardReal > 0,
+                    isDelayed: time.RetardReal > 0,
                     delay: {
                         hours: time.RetardMinutes > 0 ? Math.floor(time.RetardMinutes / 60) : 0, 
                         minutes: time.RetardMinutes > 0 ? time.RetardMinutes % 60 : 0
