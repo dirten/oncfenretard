@@ -38,7 +38,7 @@ module.exports = {
         if(moment().isDST()) {
             departureDateTime.add(1, 'hour')
         }
-
+        console.log('departureDateTime.toISOString()', departureDateTime.toISOString())
         return client
             .get('/trainnow/search', {
                 params: {
@@ -48,23 +48,26 @@ module.exports = {
                 }
             })
             .then(response => response.data.map(time => {
-                const baseTime = moment(time.DateDepart)
+                const baseTime = moment.utc(time.DateDepart)
 
-                let plannedDepartureTime = actualDepartureTime =  moment(time.HeureDepart, 'HH:mm')
-                let plannedArrivalTime = actualArrivalTime =  moment(time.HeureArrive, 'HH:mm')
+                let plannedDepartureTime = actualDepartureTime =  moment.utc(time.HeureDepart, 'HH:mm')
+                let plannedArrivalTime = actualArrivalTime =  moment.utc(time.HeureArrive, 'HH:mm')
                 
+                // console.log('time.RetardReal', time.RetardReal)
                 // monkey-patch their bug!
-                if (!moment(time.HeureArriveReel, 'HH:mm').isValid()) {
-                    time.RetardReal = (24 * 60 * 60) - time.RetardReal
-                    time.RetardMinutes = Math.floor(time.RetardReal / 60)
+                // console.log(!moment.utc(time.HeureArriveReel, 'HH:mm').isValid(), (time.RetardMinutes !== 0 || time.RetardMinutes !== -1), time.HeureArriveReel, time.RetardMinutes)
+                // if (!moment.utc(time.HeureArriveReel, 'HH:mm').isValid() && time.RetardMinutes !== -1 && time.RetardMinutes !== 0) {
+                //     time.RetardReal = (24 * 60 * 60) - time.RetardReal
+                //     time.RetardMinutes = Math.floor(time.RetardReal / 60)
+                // }
+                // console.log('time.RetardReal', time.RetardReal)
+
+                if (time.RetardReal > 0) {
+                    actualDepartureTime = moment.utc(actualDepartureTime).add(time.RetardReal, 'seconds')
+                    actualArrivalTime = moment.utc(actualArrivalTime).add(time.RetardReal, 'seconds')
                 }
 
-                if(time.RetardReal > 0) {
-                    actualDepartureTime = moment(actualDepartureTime).add(time.RetardReal, 'seconds')
-                    actualArrivalTime = moment(actualArrivalTime).add(time.RetardReal, 'seconds')
-                }
-
-                if(actualArrivalTime.diff(actualDepartureTime, 'minutes') < 0) {
+                if (actualArrivalTime.diff(actualDepartureTime, 'minutes') < 0) {
                     actualArrivalTime.add(1, 'day')
                 }
 
@@ -76,7 +79,7 @@ module.exports = {
                     type: time.Train.Gamme
                 }]
 
-                if(time.Correspondnaces) {
+                if (time.Correspondnaces) {
                     time.Correspondnaces.forEach(correspondnace => {
                         trains.push({
                             station: {
@@ -103,15 +106,15 @@ module.exports = {
                         hours: time.RetardMinutes > 0 ? Math.floor(time.RetardMinutes / 60) : 0, 
                         minutes: time.RetardMinutes > 0 ? time.RetardMinutes % 60 : 0
                     },
-                    plannedDepartureDateTime: moment(baseTime).set({hour: plannedDepartureTime.get('hour'), minute: plannedDepartureTime.get('minute')}),
-                    plannedArrivalDateTime: moment(baseTime).set({hour: plannedArrivalTime.get('hour'), minute: plannedArrivalTime.get('minute')}),
-                    actualDepartureDateTime: moment(baseTime).set({hour: actualDepartureTime.get('hour'), minute: actualDepartureTime.get('minute')}),
-                    actualArrivalDateTime: moment(baseTime).set({hour: actualArrivalTime.get('hour'), minute: actualArrivalTime.get('minute')}),
+                    plannedDepartureDateTime: moment.utc(baseTime).set({hour: plannedDepartureTime.get('hour'), minute: plannedDepartureTime.get('minute')}),
+                    plannedArrivalDateTime: moment.utc(baseTime).set({hour: plannedArrivalTime.get('hour'), minute: plannedArrivalTime.get('minute')}),
+                    actualDepartureDateTime: moment.utc(baseTime).set({hour: actualDepartureTime.get('hour'), minute: actualDepartureTime.get('minute')}),
+                    actualArrivalDateTime: moment.utc(baseTime).set({hour: actualArrivalTime.get('hour'), minute: actualArrivalTime.get('minute')}),
                     trains: trains
                 }  
             }).filter(time => {
                 // monkey-patch expired times related to daylight saving shift
-                const actualDepartureDateTime = moment(time.actualDepartureDateTime)
+                const actualDepartureDateTime = moment.utc(time.actualDepartureDateTime)
                 if(moment().isDST()) {
                     actualDepartureDateTime.add(1, 'hour')
                 }
