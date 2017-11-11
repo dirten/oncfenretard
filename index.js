@@ -2,13 +2,13 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const moment = require('moment-timezone')
-const NodeCache = require('node-cache')
+const crypto = require('crypto')
 const services = require('./services')
+const kue = require('kue')
+const mykue = require('./mykue')
+const worker = require('./worker')
 
 const app = express()
-const cache = new NodeCache({
-    stdTTL: 24 * 60 * 60 // 24 hours time-to-live
-})
 
 app.use(bodyParser.json())
 app.use(cors())
@@ -17,13 +17,7 @@ app.use((req, res, next) => {
     next()
 })
 app.get('/stations', (req, res) => {
-    const stations = cache.get('stations')
-    if (stations !== undefined) {
-        return res.json(stations)
-    }
-
     services.getStations().then(stations => {
-        cache.set('stations', stations)
         res.json(stations)
     })
 })
@@ -33,17 +27,45 @@ app.get('/times', (req, res) => {
     if(!departureDateTime.isValid()) {
         return res.sendStatus(400)
     }
-    const cacheKey = `times-${req.query.fromStationId}-${req.query.fromStationId, req.query.toStationId}-${departureDateTime.format('x')}`
-    const times = cache.get(cacheKey)
-    if (times !== undefined) {
-        return res.json(times)
-    }
 
     services
         .getTimes(req.query.fromStationId, req.query.toStationId, departureDateTime).then(times => {
-            cache.set(cacheKey, times, 60)
             res.json(times)
         })
+})
+
+app.get('/subscribe', (req, res) => {
+    const {fromStationId, toStationId, userId, timeId} = req.query
+
+    const jobKey = crypto.createHash('sha1').update(`${fromStationId}-${toStationId}-${userId}-${timeId}`).digest('hex')
+
+    mykue.getSearch().query(jobKey).end((err, ids) => {
+        if(err) {
+            return res.sendStatus(500)
+        }
+        if(ids.length > 0) {
+            kue.Job.get(ids[0], (err, job) => {
+                return res.json(job)
+            })
+        } else {
+            const job = mykue.queue.create('watch', {
+                userId,
+                fromStationId,
+                toStationId,
+                timeId,
+                jobKey
+            })
+            job.attempts(3)
+            job.searchKeys(['jobKey'])
+            job.removeOnComplete(true)
+            job.save(err => {
+                if(err) {
+                    return res.sendStatus(500)
+                }
+                return res.json(job)
+            })
+        }
+    })
 })
 
 const port = process.env.PORT || 3000
