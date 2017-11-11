@@ -2,7 +2,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
 const moment = require('moment-timezone')
-const NodeCache = require( "node-cache" )
+const NodeCache = require('node-cache')
 const services = require('./services')
 
 const app = express()
@@ -12,7 +12,10 @@ const cache = new NodeCache({
 
 app.use(bodyParser.json())
 app.use(cors())
-
+app.use((req, res, next) => {
+    console.log(new Date(), req.method, req.url) 
+    next()
+})
 app.get('/stations', (req, res) => {
     const stations = cache.get('stations')
     if (stations !== undefined) {
@@ -30,9 +33,17 @@ app.get('/times', (req, res) => {
     if(!departureDateTime.isValid()) {
         return res.sendStatus(400)
     }
+    const cacheKey = `times-${req.query.fromStationId}-${req.query.fromStationId, req.query.toStationId}-${departureDateTime.format('x')}`
+    const times = cache.get(cacheKey)
+    if (times !== undefined) {
+        return res.json(times)
+    }
+
     services
-        .getTimes(req.query.fromStationId, req.query.toStationId, departureDateTime)
-        .then(times => res.json(times))
+        .getTimes(req.query.fromStationId, req.query.toStationId, departureDateTime).then(times => {
+            cache.set(cacheKey, times, 60)
+            res.json(times)
+        })
 })
 
 const port = process.env.PORT || 3000
