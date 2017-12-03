@@ -4,16 +4,15 @@ const cors = require('cors')
 const moment = require('moment-timezone')
 const crypto = require('crypto')
 const services = require('./services')
-const kue = require('kue')
-const mykue = require('./mykue')
 const worker = require('./worker')
+const bot = require('./bot')
 
 const app = express()
 
 app.use(bodyParser.json())
 app.use(cors())
 app.use((req, res, next) => {
-    console.log(new Date(), req.method, req.url) 
+    console.log(new Date(), req.method, req.url)
     next()
 })
 app.get('/stations', (req, res) => {
@@ -34,38 +33,13 @@ app.get('/times', (req, res) => {
         })
 })
 
-app.get('/subscribe', (req, res) => {
-    const {fromStationId, toStationId, userId, timeId} = req.query
+app.get('/webhook', (req, res) => {
+    return bot._verify(req, res)
+})
 
-    const jobKey = crypto.createHash('sha1').update(`${fromStationId}-${toStationId}-${userId}-${timeId}`).digest('hex')
-
-    mykue.getSearch().query(jobKey).end((err, ids) => {
-        if(err) {
-            return res.sendStatus(500)
-        }
-        if(ids.length > 0) {
-            kue.Job.get(ids[0], (err, job) => {
-                return res.json(job)
-            })
-        } else {
-            const job = mykue.queue.create('watch', {
-                userId,
-                fromStationId,
-                toStationId,
-                timeId,
-                jobKey
-            })
-            job.attempts(3)
-            job.searchKeys(['jobKey'])
-            job.removeOnComplete(true)
-            job.save(err => {
-                if(err) {
-                    return res.sendStatus(500)
-                }
-                return res.json(job)
-            })
-        }
-    })
+app.post('/webhook', (req, res) => {
+    bot._handleMessage(req.body)
+    res.json({status: 'ok'})
 })
 
 const port = process.env.PORT || 3000

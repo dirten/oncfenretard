@@ -5,6 +5,8 @@ const queue = kue.createQueue({
     disableSearch: false
 })
 
+queue.watchStuckJobs()
+
 let search;
 function getSearch() {
   if( search ) return search

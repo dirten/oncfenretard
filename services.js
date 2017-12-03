@@ -3,6 +3,8 @@ const moment = require('moment-timezone')
 const crypto = require('crypto')
 const url = require('url')
 const NodeCache = require('node-cache')
+const kue = require('kue')
+const mykue = require('./mykue')
 
 const cache = new NodeCache({
     stdTTL: 24 * 60 * 60 // 24 hours time-to-live
@@ -41,7 +43,10 @@ module.exports = {
                     arabic: station.NomGareAr
                 }
             })))
-            .then(stations => cache.set('stations', stations))
+            .then(stations => {
+                cache.set('stations', stations)
+                return stations
+            })
     },
     getTimes(fromStationId, toStationId, departureDateTime = moment.utc()) {
         const cacheKey = `times-${fromStationId}-${toStationId}-${departureDateTime.format('x')}`
@@ -68,7 +73,10 @@ module.exports = {
                 let plannedDepartureTime = actualDepartureTime =  moment.utc(time.HeureDepart, 'HH:mm')
                 let plannedArrivalTime = actualArrivalTime =  moment.utc(time.HeureArrive, 'HH:mm')
                 
-
+                if(process.env.CHAOS) {
+                    time.RetardReal += Math.floor(Math.random() * 1000)
+                    time.RetardMinutes += Math.floor(time.RetardReal / 60)
+                }
 
                 if (time.RetardReal > 0) {
                     actualDepartureTime = moment.utc(actualDepartureTime).add(time.RetardReal, 'seconds')
@@ -136,7 +144,40 @@ module.exports = {
                 }
                 return departureDateTime.diff(actualDepartureDateTime, 'minutes') <= 0
             }))
-        cache.set(cacheKey, times, 60)
+        //cache.set(cacheKey, times, 60)
         return times
+    },
+    subscribe(fromStationId, toStationId, userId, timeId) {
+        return new Promise((resolve, reject) => {
+            const jobKey = crypto.createHash('sha1').update(`${fromStationId}-${toStationId}-${userId}-${timeId}`).digest('hex')
+            
+            mykue.getSearch().query(jobKey).end((err, ids) => {
+                if(err) {
+                    reject(err)
+                }
+                if(ids.length > 0) {
+                    kue.Job.get(ids[0], (err, job) => {
+                        resolve([job, false])
+                    })
+                } else {
+                    const job = mykue.queue.create('watch', {
+                        userId,
+                        fromStationId,
+                        toStationId,
+                        timeId,
+                        jobKey
+                    })
+                    job.attempts(3)
+                    job.searchKeys(['jobKey'])
+                    job.removeOnComplete(true)
+                    job.save(err => {
+                        if(err) {
+                            reject(err)
+                        }
+                        resolve([job, true])
+                    })
+                }
+            })
+        })
     }
 }
