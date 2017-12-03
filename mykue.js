@@ -2,7 +2,8 @@ const kue = require('kue')
 const reds = require('reds')
 
 const queue = kue.createQueue({
-    disableSearch: false
+    disableSearch: false,
+    redis: process.env.REDIS_URL
 })
 
 queue.watchStuckJobs()
