@@ -37,9 +37,11 @@ mykue.queue.process('watch', 128, (job, done) => {
                 if(previousTime && !_.isEqual(previousTime.delay, newTime.delay)) {
                     job.log(`sending delay alert`)
                     bot.sendMessage(userId, {
-                        text: `Train ${fromStation.name.french} ⟶ ${toStation.name.french} ` +
-                            `retard ${newTime.delay.hours > 0 ? `${newTime.delay.hours}h`: ''}${newTime.delay.minutes}m ` +
-                            `nouvelle depart ${newTime.actualArrivalDateTime.format('HH:mm')}`
+                        text: `${fromStation.name.french} ⟶ ${toStation.name.french}\n` +
+                            `Original departure time ${newTime.plannedDepartureTime.format('HH:mm')}\n` +
+                            `New departure time ${newTime.actualDepartureTime.format('HH:mm')}\n` +
+                            `New arrival time ${newTime.actualArrivalDateTime.format('HH:mm')}\n` +
+                            `Delay ${newTime.delay.hours > 0 ? `${newTime.delay.hours}h`: ''}${newTime.delay.minutes}m`
                     }, (err, info) => {
                         if(err) {
                             return job.log(`error sending delay alert ${JSON.stringify(err)}`)
