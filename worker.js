@@ -36,12 +36,12 @@ mykue.queue.process('watch', 128, (job, done) => {
                 
                 if(previousTime && !_.isEqual(previousTime.delay, newTime.delay)) {
                     job.log(`sending delay alert`)
+                    newTime.plannedDepartureDateTime = moment(newTime.plannedDepartureDateTime)
+                    newTime.plannedArrivalDateTime = moment(newTime.plannedArrivalDateTime)
+                    newTime.actualDepartureDateTime = moment(newTime.actualDepartureDateTime)
+                    newTime.actualArrivalDateTime = moment(newTime.actualArrivalDateTime)
                     bot.sendMessage(userId, {
-                        text: `${fromStation.name.french} ⟶ ${toStation.name.french}\n` +
-                            `Original departure time ${newTime.plannedDepartureTime.format('HH:mm')}\n` +
-                            `New departure time ${newTime.actualDepartureTime.format('HH:mm')}\n` +
-                            `New arrival time ${newTime.actualArrivalDateTime.format('HH:mm')}\n` +
-                            `Delay ${newTime.delay.hours > 0 ? `${newTime.delay.hours}h`: ''}${newTime.delay.minutes}m`
+                        text: `${fromStation.name.french} ⟶ ${toStation.name.french}\nOriginal departure time ${newTime.plannedDepartureDateTime.format('HH:mm')}\nNew departure time ${newTime.actualDepartureDateTime.format('HH:mm')}\nNew arrival time ${newTime.actualArrivalDateTime.format('HH:mm')}\nDelay ${newTime.delay.hours > 0 ? `${newTime.delay.hours}h`: ''}${newTime.delay.minutes}m`
                     }, (err, info) => {
                         if(err) {
                             return job.log(`error sending delay alert ${JSON.stringify(err)}`)
