@@ -2,9 +2,9 @@ const axios = require('axios')
 const moment = require('moment-timezone')
 const crypto = require('crypto')
 const url = require('url')
+const _ = require('lodash')
+const cryptr = new (require('cryptr'))(process.env.ENCRYPTION_KEY || 'devoops', 'blowfish')
 const NodeCache = require('node-cache')
-const kue = require('kue')
-const mykue = require('./mykue')
 
 const cache = new NodeCache({
     stdTTL: 24 * 60 * 60 // 24 hours time-to-live
@@ -29,11 +29,11 @@ client.interceptors.request.use(
 )
 
 module.exports = {
-    getStations() {
+    async getStations() {
         const stations = cache.get('stations')
         if (stations !== undefined) {
             return stations
-        }    
+        }
         return client
             .get('/gares')
             .then(response => response.data.map(station => ({
@@ -48,7 +48,8 @@ module.exports = {
                 return stations
             })
     },
-    getTimes(fromStationId, toStationId, departureDateTime = moment.utc()) {
+
+    async getTimes(fromStationId, toStationId, departureDateTime = moment.utc()) {
         const cacheKey = `times-${fromStationId}-${toStationId}-${departureDateTime.format('x')}`
         let times = cache.get(cacheKey)
         if (times !== undefined) {
@@ -72,7 +73,7 @@ module.exports = {
 
                 let plannedDepartureTime = actualDepartureTime =  moment.utc(time.HeureDepart, 'HH:mm')
                 let plannedArrivalTime = actualArrivalTime =  moment.utc(time.HeureArrive, 'HH:mm')
-                
+
                 if(process.env.CHAOS) {
                     time.RetardReal += Math.floor(Math.random() * 1000)
                     time.RetardMinutes += Math.floor(time.RetardReal / 60)
@@ -116,10 +117,10 @@ module.exports = {
                         duration: {
                             hours: Math.floor(tripDuration / 60),
                             minutes: tripDuration % 60
-                        } 
+                        }
                     },
                     delay: {
-                        hours: time.RetardMinutes > 0 ? Math.floor(time.RetardMinutes / 60) : 0, 
+                        hours: time.RetardMinutes > 0 ? Math.floor(time.RetardMinutes / 60) : 0,
                         minutes: time.RetardMinutes > 0 ? time.RetardMinutes % 60 : 0
                     },
                     plannedDepartureDateTime: moment.utc(baseTime).set({hour: plannedDepartureTime.get('hour'), minute: plannedDepartureTime.get('minute'), seconds: 0}),
@@ -128,12 +129,13 @@ module.exports = {
                     actualArrivalDateTime: moment.utc(baseTime).set({hour: actualArrivalTime.get('hour'), minute: actualArrivalTime.get('minute')}),
                     trains: trains
                 }
-                output.id = crypto.createHash('sha1')
-                                .update(fromStationId)
-                                .update(toStationId)
-                                .update(output.plannedDepartureDateTime.format('x')) // timestamp
-                                .digest('hex')
-                
+
+                output.id = cryptr.encrypt([
+                    fromStationId,
+                    toStationId,
+                    output.plannedDepartureDateTime.format('x')
+                ].join('.'))
+
                 return output
             })
             .filter(time => {
@@ -144,40 +146,25 @@ module.exports = {
                 }
                 return departureDateTime.diff(actualDepartureDateTime, 'minutes') <= 0
             }))
-        //cache.set(cacheKey, times, 60)
+        cache.set(cacheKey, times, 60)
         return times
     },
-    subscribe(fromStationId, toStationId, userId, timeId) {
-        return new Promise((resolve, reject) => {
-            const jobKey = crypto.createHash('sha1').update(`${fromStationId}-${toStationId}-${userId}-${timeId}`).digest('hex')
-            
-            mykue.getSearch().query(jobKey).end((err, ids) => {
-                if(err) {
-                    reject(err)
-                }
-                if(ids.length > 0) {
-                    kue.Job.get(ids[0], (err, job) => {
-                        resolve([job, false])
-                    })
-                } else {
-                    const job = mykue.queue.create('watch', {
-                        userId,
-                        fromStationId,
-                        toStationId,
-                        timeId,
-                        jobKey
-                    })
-                    job.attempts(3)
-                    job.searchKeys(['jobKey'])
-                    job.removeOnComplete(true)
-                    job.save(err => {
-                        if(err) {
-                            reject(err)
-                        }
-                        resolve([job, true])
-                    })
-                }
-            })
-        })
+
+    async getTime(timeId) {
+        let timeQuery
+        try {
+            timeQuery = cryptr.decrypt(timeId)
+        } catch (ex) {
+            return null
+        }
+        const [fromStationId, toStationId, plannedDepartureDateTime] = timeQuery.split('.')
+
+        const times = await this.getTimes(
+            fromStationId,
+            toStationId,
+            moment.utc(plannedDepartureDateTime, 'x').subtract(1, 'minute')
+        )
+        const time = _.find(times, {id: timeId})
+        return time
     }
 }
