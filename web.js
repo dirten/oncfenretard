@@ -2,8 +2,8 @@ const moment = require('moment-timezone')
 const services = require('./services')
 const backend = require('./backend')
 
-backend.app.get('/stations', (req, res) => {
-    const stations = services.getStations()
+backend.app.get('/stations', async (req, res) => {
+    const stations = await services.getStations()
     res.json(stations)
 })
 
