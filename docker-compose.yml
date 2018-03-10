@@ -1,0 +1,29 @@
+version: '2'
+services:
+  web:
+    build: .
+    ports:
+     - "3000:3000"
+    command: "web.js"
+    links:
+      - redis
+    depends_on:
+      - redis
+  worker:
+    build: .
+    command: "worker.js"
+    links:
+      - redis
+    depends_on:
+      - redis
+  queue:
+    build: .
+    command: "node_modules/kue/bin/kue-dashboard -r redis://redis:6379 -p 3001"
+    ports:
+     - "3001:3001"
+    links:
+      - redis
+    depends_on:
+      - redis
+  redis:
+    image: "redis:alpine"
