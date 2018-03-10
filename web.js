@@ -9,7 +9,9 @@ backend.app.get('/stations', async (req, res) => {
 
 backend.app.get('/times', async (req, res) => {
     const departureDateTime = moment.utc(req.query.departureDateTime)
-    if(!departureDateTime.isValid()) {
+    if(!departureDateTime.isValid() ||
+       !req.query.fromStationId ||
+       !req.query.toStationId) {
         return res.sendStatus(400)
     }
     try {
@@ -20,7 +22,7 @@ backend.app.get('/times', async (req, res) => {
         )
         res.json(times)
     } catch (err) {
-        res.status(500).json(err)
+        res.status(500)
     }
 })
 
