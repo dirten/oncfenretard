@@ -1,20 +1,13 @@
-const express = require('express')
-const bodyParser = require('body-parser')
-const cors = require('cors')
 const moment = require('moment-timezone')
 const services = require('./services')
+const backend = require('./backend')
 
-const app = express()
-
-app.use(bodyParser.json())
-app.use(cors())
-
-app.get('/stations', (req, res) => {
+backend.app.get('/stations', (req, res) => {
     const stations = services.getStations()
     res.json(stations)
 })
 
-app.get('/times', async (req, res) => {
+backend.app.get('/times', async (req, res) => {
     const departureDateTime = moment.utc(req.query.departureDateTime)
     if(!departureDateTime.isValid()) {
         return res.sendStatus(400)
@@ -32,7 +25,7 @@ app.get('/times', async (req, res) => {
 })
 
 
-app.get('/times/:timeId', async (req, res) => {
+backend.app.get('/times/:timeId', async (req, res) => {
     const {timeId} = req.params
     if(!timeId) {
         return res.sendStatus(400)
@@ -49,7 +42,16 @@ app.get('/times/:timeId', async (req, res) => {
     }
 })
 
+backend.io.on('connection', async (socket) => {
+    socket.on('subscribe', async (timeId) => {
+        console.log('subscribed', timeId)
+        socket.join(timeId, (err) => {
+            console.log('subscription error', err)
+        })
+    })
+})
+
 const port = process.env.PORT || 3000
-app.listen(port, () => {
-    console.log(`app listening on port ${port}`)
+backend.server.listen(port, () => {
+    console.log(`backend.app listening on port ${port}`)
 })

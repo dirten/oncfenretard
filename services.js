@@ -3,7 +3,6 @@ const moment = require('moment-timezone')
 const crypto = require('crypto')
 const url = require('url')
 const _ = require('lodash')
-const cryptr = new (require('cryptr'))(process.env.ENCRYPTION_KEY || 'devoops', 'blowfish')
 const NodeCache = require('node-cache')
 
 const cache = new NodeCache({
@@ -74,7 +73,7 @@ module.exports = {
                 let plannedDepartureTime = actualDepartureTime =  moment.utc(time.HeureDepart, 'HH:mm')
                 let plannedArrivalTime = actualArrivalTime =  moment.utc(time.HeureArrive, 'HH:mm')
 
-                if(process.env.CHAOS) {
+                if(process.env.CHAOS && Math.random() > 0.75) {
                     time.RetardReal += Math.floor(Math.random() * 1000)
                     time.RetardMinutes += Math.floor(time.RetardReal / 60)
                 }
@@ -130,11 +129,11 @@ module.exports = {
                     trains: trains
                 }
 
-                output.id = cryptr.encrypt([
+                output.id = [
                     fromStationId,
                     toStationId,
                     output.plannedDepartureDateTime.format('x')
-                ].join('.'))
+                ].join('.')
 
                 return output
             })
@@ -146,18 +145,17 @@ module.exports = {
                 }
                 return departureDateTime.diff(actualDepartureDateTime, 'minutes') <= 0
             }))
-        cache.set(cacheKey, times, 60)
+        if(!process.env.CHAOS) {
+            cache.set(cacheKey, times, 60)
+        }
         return times
     },
 
     async getTime(timeId) {
-        let timeQuery
-        try {
-            timeQuery = cryptr.decrypt(timeId)
-        } catch (ex) {
-            return null
+        const [fromStationId, toStationId, plannedDepartureDateTime] = timeId.split('.')
+        if (!fromStationId || !toStationId || !plannedDepartureDateTime) {
+            throw new Error('invalid parameters')
         }
-        const [fromStationId, toStationId, plannedDepartureDateTime] = timeQuery.split('.')
 
         const times = await this.getTimes(
             fromStationId,
