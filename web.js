@@ -1,6 +1,7 @@
 const moment = require('moment-timezone')
 const services = require('./services')
 const backend = require('./backend')
+const queue = require('./queue')
 
 backend.app.get('/stations', async (req, res) => {
     const stations = await services.getStations()
@@ -46,9 +47,19 @@ backend.app.get('/times/:timeId', async (req, res) => {
 
 backend.io.on('connection', async (socket) => {
     socket.on('subscribe', async (timeId) => {
-        console.log('subscribed', timeId)
-        socket.join(timeId, (err) => {
-            console.log('subscription error', err)
+        const job =  queue.create('watch', {timeId}).attempts(10)
+        job.save(async (err) => {
+            if(err) {
+                return console.log('job creation error', err)
+            }
+            console.log('queued job', timeId, job.id)
+
+            socket.join(timeId, async (err) => {
+                if(err) {
+                    return console.log('subscription error', err)
+                }
+                console.log('subscribed', timeId)
+            })
         })
     })
 })
