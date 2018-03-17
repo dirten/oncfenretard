@@ -41,7 +41,7 @@ queue.process('watch', process.env.WATCH_CONCURRENCY || 128, async (job, done) =
                 })
             }
 
-            if(now > newTime.actualDepartureDateTime) {
+            if(now < newTime.actualDepartureDateTime) {
                 console.log(`end watching`)
                 clearTimeout(checkHandler)
                 await lock.release()
