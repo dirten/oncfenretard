@@ -49,7 +49,7 @@ module.exports = {
     },
 
     async getTimes(fromStationId, toStationId, departureDateTime = moment.utc()) {
-        const cacheKey = `times-${fromStationId}-${toStationId}-${departureDateTime.format('x')}`
+        const cacheKey = `times-${fromStationId}-${toStationId}-${departureDateTime.format('X')}`
         let times = cache.get(cacheKey)
         if (times !== undefined) {
             return times
@@ -132,7 +132,7 @@ module.exports = {
                 output.id = [
                     fromStationId,
                     toStationId,
-                    output.plannedDepartureDateTime.format('x')
+                    output.plannedDepartureDateTime.format('X')
                 ].join('.')
 
                 return output
@@ -160,7 +160,7 @@ module.exports = {
         const times = await this.getTimes(
             fromStationId,
             toStationId,
-            moment.utc(plannedDepartureDateTime, 'x').subtract(1, 'minute')
+            moment.utc(plannedDepartureDateTime, 'X').subtract(1, 'minute')
         )
         const time = _.find(times, {id: timeId})
         return time
