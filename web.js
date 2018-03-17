@@ -8,7 +8,7 @@ backend.app.get('/stations', async (req, res) => {
 })
 
 backend.app.get('/times', async (req, res) => {
-    const departureDateTime = moment.utc(req.query.departureDateTime)
+    const departureDateTime = moment.utc(req.query.departureDateTime, 'X')
     if(!departureDateTime.isValid() ||
        !req.query.fromStationId ||
        !req.query.toStationId) {
